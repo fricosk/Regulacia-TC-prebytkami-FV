@@ -1,4 +1,4 @@
-# Regul-cia-T-prebytkami-FV
+# Regulacia-TC-prebytkami-FV
 
 Tento projekt bude riešiť zapínanie tepelného četpadla po vyhodnotení dostatočných prebytkov výroby domácej fotovoltickej elektrarne.
 Dáta z elektrarne sa budú načítavať cez API archyvovať do súboru *.csv.
