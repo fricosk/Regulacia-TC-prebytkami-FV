@@ -97,7 +97,7 @@ def zapis_do_csv(subor, nazov, vykon, energia):
 
             # ak je súbor nový → zapíš hlavičku
             if novy_subor:
-                writer.writerow(["čas", "názov", "výkon_W", "energia_kWh"])
+                writer.writerow(["Datum a Cas", "Nazov", "Vykon aktualny_W", "Energia za deň_kWh"])
 
             # aktuálny čas vo formáte YYYY-MM-DD HH:MM:SS
             cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -128,7 +128,7 @@ def zapis_do_csv(subor, nazov, vykon, energia):
 HA_URL = "http://192.168.2.183:8123"
 
 # autentifikačný token (v praxi ho nezverejňovať)
-HA_TOKEN = "TU_DAJ_TOKEN"
+HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMjU2ZTZiNzFlM2M0NGQ3OTAxMGQ4NWQzMGU1ZDliZCIsImlhdCI6MTc3NDQyNTQ4MywiZXhwIjoyMDg5Nzg1NDgzfQ.uVUUFm4hJpI26JEqMBTY6IhjVqMT3yzITl0a9faphpo"
 
 # vytvorenie klienta
 client = HomeAssistantClient(HA_URL, HA_TOKEN)
