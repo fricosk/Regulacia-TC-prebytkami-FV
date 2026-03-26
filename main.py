@@ -1,166 +1,145 @@
 import requests
-
-
-# -------------------
-# TRIEDA - ELEKTRÁREŇ (OBJEKT)
-# -------------------
-class Elektraren:
-    """
-    Trieda Elektraren reprezentuje jednu solárnu elektráreň.
-    Obsahuje základné informácie (atribúty) a metódy na prácu s nimi.
-    """
-
-    def __init__(self, nazov, plant_id):
-        # VLASTNOSTI (atribúty objektu)
-        self.nazov = nazov              # názov elektrárne
-        self.plant_id = plant_id        # identifikátor elektrárne
-        self.aktualny_vykon = 0         # aktuálny výkon (W)
-        self.denna_energia = 0          # vyrobená energia za deň (kWh)
-
-    # METÓDA - nastaví aktuálny výkon
-    def nastav_vykon(self, vykon):
-        """
-        Nastaví aktuálny výkon elektrárne.
-        :param vykon: výkon vo wattoch
-        """
-        self.aktualny_vykon = vykon
-
-    # METÓDA - nastaví dennú energiu
-    def nastav_energiu(self, energia):
-        """
-        Nastaví dennú vyrobenú energiu.
-        :param energia: energia v kWh
-        """
-        self.denna_energia = energia
-
-    # METÓDA - zobrazí informácie o elektrárni
-    def zobraz_info(self):
-        """
-        Vypíše všetky dôležité informácie o elektrárni.
-        """
-        print(f"Elektráreň: {self.nazov}")
-        print(f"ID: {self.plant_id}")
-        print(f"Aktuálny výkon: {self.aktualny_vykon} W")
-        print(f"Denná energia: {self.denna_energia} kWh")
-
+import time
+import csv
+import os
+from datetime import datetime
 
 # -------------------
-# TRIEDA - API KLIENT
+# HA klient
 # -------------------
-class GrowattClient:
-    """
-    Trieda GrowattClient zabezpečuje komunikáciu so serverom Growatt.
-    Slúži na prihlásenie a získavanie dát z API.
-    """
-
-    def __init__(self, email, heslo):
-        # prihlasovacie údaje
-        self.email = email
-        self.heslo = heslo
-
-        # vytvorenie session (uchováva cookies)
-        self.session = requests.Session()
-
-    # METÓDA - prihlásenie do systému
-    def prihlasenie(self):
-        """
-        Pokúsi sa prihlásiť na server Growatt.
-        :return: True ak úspech, inak False
-        """
-        url = "https://server.growatt.com/login"
-
-        data = {
-            "account": self.email,
-            "password": self.heslo
+class HomeAssistantClient:
+    def __init__(self, base_url, token):
+        self.base_url = base_url.rstrip("/")
+        self.headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
         }
 
-        response = self.session.post(url, data=data)
+    def ziskaj_stav(self, entity_id):
+        url = f"{self.base_url}/api/states/{entity_id}"
 
-        # kontrola úspešnosti prihlásenia
-        if response.status_code == 200 and '"result":1' in response.text:
-            print("✅ Prihlásenie úspešné")
-            return True
-        else:
-            print("❌ Prihlásenie zlyhalo")
-            return False
+        try:
+            resp = requests.get(url, headers=self.headers, timeout=10)
+            resp.raise_for_status()
+            return resp.json()
 
-    # METÓDA - získanie aktuálneho výkonu
-    def ziskaj_aktualny_vykon(self, plant_id):
-        """
-        Získa aktuálny výkon elektrárne.
-        :param plant_id: ID elektrárne
-        :return: výkon (W)
-        """
-        url = "https://server.growatt.com/panel/getMAXTotalData"
+        except requests.exceptions.Timeout:
+            print(f"Chyba: timeout pri {entity_id}")
 
-        data = {
-            "plantId": plant_id,
-            "type": "1"
-        }
+        except requests.exceptions.ConnectionError:
+            print(f"Chyba: nemožno sa pripojiť ({entity_id})")
 
-        response = self.session.post(url, data=data)
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP chyba pri {entity_id}: {e}")
 
-        if response.status_code == 200:
-            try:
-                json_data = response.json()
-                return json_data.get("power", 0)
-            except:
-                return 0
-        return 0
+        except ValueError:
+            print(f"Chyba: neplatný JSON ({entity_id})")
 
-    # METÓDA - získanie dennej energie
-    def ziskaj_dennu_energiu(self, plant_id, datum):
-        """
-        Získa množstvo vyrobenej energie za konkrétny deň.
-        :param plant_id: ID elektrárne
-        :param datum: dátum (YYYY-MM-DD)
-        :return: energia (kWh)
-        """
-        url = "https://server.growatt.com/panel/getMAXDayChart"
+        except Exception as e:
+            print(f"Iná chyba ({entity_id}): {e}")
 
-        data = {
-            "plantId": plant_id,
-            "date": datum
-        }
+        return None
 
-        response = self.session.post(url, data=data)
 
-        if response.status_code == 200:
-            try:
-                json_data = response.json()
-                return json_data.get("energy", 0)
-            except:
-                return 0
-        return 0
+# -------------------
+# CSV LOGOVANIE
+# -------------------
+def zapis_do_csv(subor, nazov, vykon, energia):
+    """
+    Zapíše jeden riadok do CSV súboru
+
+    subor   - názov súboru
+    nazov   - názov elektrárne
+    vykon   - aktuálny výkon
+    energia - denná energia
+    """
+
+    try:
+        # zistíme, či súbor existuje (kvôli hlavičke)
+        novy_subor = not os.path.exists(subor)
+
+        # otvorenie súboru v režime append (pridávanie riadkov)
+        with open(subor, mode="a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+
+            # ak je súbor nový → zapíš hlavičku
+            if novy_subor:
+                writer.writerow(["čas", "názov", "výkon_W", "energia_kWh"])
+
+            # aktuálny čas
+            cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # zápis dát
+            writer.writerow([cas, nazov, vykon, energia])
+
+    except PermissionError:
+        print("Chyba: nemáš oprávnenie zapisovať do súboru")
+
+    except OSError as e:
+        print(f"Chyba súboru: {e}")
+
+    except Exception as e:
+        print(f"Neočakávaná chyba pri zápise CSV: {e}")
 
 
 # -------------------
 # HLAVNÝ PROGRAM
 # -------------------
 
-# prihlasovacie údaje (pre školský projekt - v praxi by mali byť bezpečne uložené)
-email = "fricosk"
-heslo = "kanur1"
-plant_id = "732784"
+HA_URL = "http://192.168.2.183:8123"
+HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMjU2ZTZiNzFlM2M0NGQ3OTAxMGQ4NWQzMGU1ZDliZCIsImlhdCI6MTc3NDQyNTQ4MywiZXhwIjoyMDg5Nzg1NDgzfQ.uVUUFm4hJpI26JEqMBTY6IhjVqMT3yzITl0a9faphpo"
 
-# vytvorenie objektu elektrárne
-moja_elektraren = Elektraren("Moja FVE", plant_id)
+client = HomeAssistantClient(HA_URL, HA_TOKEN)
 
-# vytvorenie klienta pre komunikáciu s API
-client = GrowattClient(email, heslo)
+growatt_entities = [
+    {
+        "nazov": "Moja FVE",
+        "vykon_id": "sensor.doma_plot_total_vystupny_vykon",
+        "energia_id": "sensor.doma_plot_total_energia_dnes"
+    }
+]
 
-# pokus o prihlásenie
-if client.prihlasenie():
+CSV_SUBOR = "log_fve.csv"
 
-    # získanie dát zo servera
-    vykon = client.ziskaj_aktualny_vykon(plant_id)
-    energia = client.ziskaj_dennu_energiu(plant_id, "2026-03-18")
+print("\n--- LIVE VÝPIS ELEKTRÁRNE ---")
+print(f"{'Názov':20} | {'Výkon':10} | {'Energia':10}")
+print("-" * 50)
 
-    # uloženie dát do objektu elektrárne
-    moja_elektraren.nastav_vykon(vykon)
-    moja_elektraren.nastav_energiu(energia)
+INTERVAL = 60
 
-    # výpis informácií
-    moja_elektraren.zobraz_info()
-else:
-    print("Nepodarilo sa prihlásiť")
+try:
+    while True:
+        for e in growatt_entities:
+
+            try:
+                vykon_data = client.ziskaj_stav(e["vykon_id"])
+                vykon = float(vykon_data.get("state", 0)) * 1000 if vykon_data else 0
+
+                energia_data = client.ziskaj_stav(e["energia_id"])
+                energia = float(energia_data.get("state", 0)) if energia_data else 0
+
+            except ValueError:
+                print("Chyba: konverzia na číslo")
+                vykon = 0
+                energia = 0
+
+            except AttributeError:
+                print("Chyba: neplatné dáta")
+                vykon = 0
+                energia = 0
+
+            # výpis do konzoly
+            print(f"{e['nazov']:20} | {vykon:6.1f} W | {energia:6.2f} kWh")
+
+            # 🔴 zápis do CSV
+            zapis_do_csv(CSV_SUBOR, e["nazov"], vykon, energia)
+
+        print("-" * 50)
+
+        try:
+            time.sleep(INTERVAL)
+        except KeyboardInterrupt:
+            raise
+
+except KeyboardInterrupt:
+    print("\n🔴 Ukončené používateľom")
