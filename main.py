@@ -147,7 +147,7 @@ CSV_SUBOR = "log_fve.csv"
 
 # výpis hlavičky do konzoly
 print("\n--- LIVE VÝPIS ELEKTRÁRNE ---")
-print(f"{'Názov':20} | {'Výkon':10} | {'Energia':10}")
+print(f"{'Názov':10} | {'Výkon':10} | {'Energia':10}")
 print("-" * 50)
 
 # interval merania (sekundy)
@@ -164,7 +164,7 @@ try:
 
                 # kontrola + konverzia na float
                 # ak data neexistujú → 0
-                vykon = float(vykon_data.get("state", 0)) * 1000 if vykon_data else 0
+                vykon = float(vykon_data.get("state", 0)) if vykon_data else 0
 
                 # -------- NAČÍTANIE ENERGIE --------
                 energia_data = client.ziskaj_stav(e["energia_id"])
@@ -184,7 +184,7 @@ try:
                 energia = 0
 
             # -------- VÝPIS DO KONZOLY --------
-            print(f"{e['nazov']:20} | {vykon:6.1f} W | {energia:6.2f} kWh")
+            print(f"{e['nazov']:10} | {vykon:6.1f} W | {energia:6.2f} kWh")
 
             # -------- ZÁPIS DO CSV --------
             zapis_do_csv(CSV_SUBOR, e["nazov"], vykon, energia)
