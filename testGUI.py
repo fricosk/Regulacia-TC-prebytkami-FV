@@ -89,7 +89,7 @@ class App:
                 vykon_data = self.client.ziskaj_stav("sensor.doma_plot_total_vystupny_vykon")
                 energia_data = self.client.ziskaj_stav("sensor.doma_plot_total_energia_dnes")
 
-                vykon = float(vykon_data.get("state", 0)) * 1000 if vykon_data else 0
+                vykon = float(vykon_data.get("state", 0)) if vykon_data else 0
                 energia = float(energia_data.get("state", 0)) if energia_data else 0
 
             except ValueError:
