@@ -42,10 +42,10 @@
 
 <div class="card">
     <h3>Teploty</h3>
-    <p>Outdoor: {{ data.temps.outdoor }}</p>
-    <p>Return: {{ data.temps.return }}</p>
-    <p>Tank: {{ data.temps.tank }}</p>
-    <p>Outlet: {{ data.temps.outlet }}</p>
+    <p>Vonkajšia: {{ data.temps.outdoor }}</p>
+    <p>Spiatočka: {{ data.temps.return }}</p>
+    <p>Bojler: {{ data.temps.tank }}</p>
+    <p>Výstupná: {{ data.temps.outlet }}</p>
 </div>
 
 <div class="card">
@@ -72,29 +72,29 @@ async function loadGraph() {
                         yAxisID: 'y'
                     },
                     {
-                        label: "Outdoor",
+                        label: "Vonkajšia teplota",
                         data: d.outdoor,
                         yAxisID: 'y1'
                     },
                     {
-                        label: "Return",
+                        label: "Spiatočka",
                         data: d.return,
                         yAxisID: 'y1'
                     },
                     {
-                        label: "Tank",
+                        label: "Bojler",
                         data: d.tank,
                         yAxisID: 'y1'
                     },
                     {
-                        label: "Outlet",
+                        label: "Výstupná teplota",
                         data: d.outlet,
                         yAxisID: 'y1'
                     }
                 ]
             },
             options: {
-                animation: false,
+                animation: true,
                 responsive: true,
                 interaction: {
                     mode: 'index',
