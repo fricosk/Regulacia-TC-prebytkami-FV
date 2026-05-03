@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Energy Manager</title>
+    <meta http-equiv="refresh" content="5">
+</head>
+<body style="font-family: Arial">
+
+    <h2>⚡ FV výkon: {{ data.power }} W</h2>
+
+    <h2>🔥 Čerpadlo:
+        {% if data.pump %}
+            <span style="color:green">ON</span>
+        {% else %}
+            <span style="color:red">OFF</span>
+        {% endif %}
+    </h2>
+
+    <h3>🌡 Teploty</h3>
+    <ul>
+        <li>Outdoor: {{ data.temps.outdoor }}</li>
+        <li>Return: {{ data.temps.return }}</li>
+        <li>Tank: {{ data.temps.tank }}</li>
+        <li>Outlet: {{ data.temps.outlet }}</li>
+    </ul>
+
+</body>
+</html>
