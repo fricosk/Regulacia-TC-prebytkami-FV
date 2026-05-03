@@ -1,29 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="sk">
 <head>
-    <meta charset="utf-8">
-    <title>Energy Manager</title>
-    <meta http-equiv="refresh" content="5">
+    <meta charset="UTF-8">
+    <title>Tepelné čerpadlo</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #111;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .card {
+            background: #1e1e1e;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+        }
+
+        canvas {
+            background: #fff;
+            border-radius: 10px;
+        }
+    </style>
 </head>
-<body style="font-family: Arial">
+<body>
 
-    <h2>⚡ FV výkon: {{ data.power }} W</h2>
-
-    <h2>🔥 Čerpadlo:
+<div class="card">
+    <h2>Výkon FV: {{ data.power }} W</h2>
+    <h3>Čerpadlo:
         {% if data.pump %}
-            <span style="color:green">ON</span>
+            <span style="color:lime;">ZAPNUTÉ</span>
         {% else %}
-            <span style="color:red">OFF</span>
+            <span style="color:red;">VYPNUTÉ</span>
         {% endif %}
-    </h2>
+    </h3>
+</div>
 
-    <h3>🌡 Teploty</h3>
-    <ul>
-        <li>Outdoor: {{ data.temps.outdoor }}</li>
-        <li>Return: {{ data.temps.return }}</li>
-        <li>Tank: {{ data.temps.tank }}</li>
-        <li>Outlet: {{ data.temps.outlet }}</li>
-    </ul>
+<div class="card">
+    <h3>Teploty</h3>
+    <p>Outdoor: {{ data.temps.outdoor }}</p>
+    <p>Return: {{ data.temps.return }}</p>
+    <p>Tank: {{ data.temps.tank }}</p>
+    <p>Outlet: {{ data.temps.outlet }}</p>
+</div>
+
+<div class="card">
+    <h3>Spoločný graf (výkon + teploty)</h3>
+    <canvas id="mainChart"></canvas>
+</div>
+
+<script>
+let chart;
+
+async function loadGraph() {
+    const res = await fetch("/data");
+    const d = await res.json();
+
+    if (!chart) {
+        chart = new Chart(document.getElementById("mainChart"), {
+            type: "line",
+            data: {
+                labels: d.time,
+                datasets: [
+                    {
+                        label: "Výkon (W)",
+                        data: d.power,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: "Outdoor",
+                        data: d.outdoor,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: "Return",
+                        data: d.return,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: "Tank",
+                        data: d.tank,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: "Outlet",
+                        data: d.outlet,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Výkon (W)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Teplota (°C)'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            }
+        });
+
+    } else {
+        chart.data.labels = d.time;
+
+        chart.data.datasets[0].data = d.power;
+        chart.data.datasets[1].data = d.outdoor;
+        chart.data.datasets[2].data = d.return;
+        chart.data.datasets[3].data = d.tank;
+        chart.data.datasets[4].data = d.outlet;
+
+        chart.update();
+    }
+}
+
+setInterval(loadGraph, 5000);
+loadGraph();
+</script>
 
 </body>
 </html>

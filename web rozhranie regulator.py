@@ -1,8 +1,9 @@
 import time
 import threading
 import requests
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from pymodbus.client import ModbusTcpClient
+from collections import deque
 
 app = Flask(__name__)
 
@@ -18,6 +19,18 @@ HP_UNIT_ID = 1
 
 ON_THRESHOLD = 3500
 OFF_THRESHOLD = 2500
+
+# -------------------------
+# HISTORY (graf)
+# -------------------------
+history = {
+    "time": deque(maxlen=300),
+    "power": deque(maxlen=300),
+    "outdoor": deque(maxlen=300),
+    "return": deque(maxlen=300),
+    "tank": deque(maxlen=300),
+    "outlet": deque(maxlen=300),
+}
 
 # -------------------------
 # HEAT PUMP
@@ -53,7 +66,7 @@ class HeatPump:
             r = self.client.read_holding_registers(
                 address=addr,
                 count=1,
-                slave=HP_UNIT_ID  # ← namiesto unit/device_id
+                slave=HP_UNIT_ID
             )
         except TypeError:
             r = self.client.read_holding_registers(
@@ -134,7 +147,6 @@ def control_loop():
             temps = hp.get_temps()
             pump = hp.is_on()
 
-            # logika
             if time.time() - last_switch > 60:
 
                 if not pump and power > ON_THRESHOLD:
@@ -149,17 +161,44 @@ def control_loop():
             state["temps"] = temps
             state["pump"] = pump
 
+            # -------------------------
+            # HISTÓRIA PRE GRAF
+            # -------------------------
+            now = time.strftime("%H:%M:%S")
+
+            history["time"].append(now)
+            history["power"].append(power)
+            history["outdoor"].append(temps["outdoor"])
+            history["return"].append(temps["return"])
+            history["tank"].append(temps["tank"])
+            history["outlet"].append(temps["outlet"])
+
         except Exception as e:
             print("ERROR:", e)
 
         time.sleep(5)
 
 # -------------------------
-# WEB ROUTE
+# WEB ROUTES
 # -------------------------
 @app.route("/")
 def index():
     return render_template("index.html", data=state)
+
+@app.route("/data")
+def data():
+    return jsonify({
+        "time": list(history["time"]),
+        "power": list(history["power"]),
+        "outdoor": list(history["outdoor"]),
+        "return": list(history["return"]),
+        "tank": list(history["tank"]),
+        "outlet": list(history["outlet"]),
+    })
+
+@app.route("/debug")
+def debug():
+    return state
 
 # -------------------------
 # START
@@ -167,7 +206,3 @@ def index():
 if __name__ == "__main__":
     threading.Thread(target=control_loop, daemon=True).start()
     app.run(host="0.0.0.0", port=5000)
-
-    @app.route("/debug")
-    def debug():
-        return state
